@@ -71,7 +71,9 @@ UDPServer::UDPServer(const std::shared_ptr<Service>& service, const std::string&
         throw CppCommon::ArgumentException("Asio service is invalid!");
 
     // Prepare endpoint
-    _endpoint = asio::ip::udp::endpoint(asio::ip::make_address(address), (unsigned short)port);
+    asio::ip::udp::resolver resolver(*_io_service);
+    asio::ip::udp::resolver::results_type endpoints = resolver.resolve(_address, std::to_string(_port));
+    _endpoint = *endpoints.begin();
 }
 
 UDPServer::UDPServer(const std::shared_ptr<Service>& service, const asio::ip::udp::endpoint& endpoint)
@@ -167,9 +169,9 @@ bool UDPServer::Start()
         onStarted();
     };
     if (_strand_required)
-        _strand.post(start_handler);
+        asio::dispatch(_strand, start_handler);
     else
-        _io_service->post(start_handler);
+        asio::dispatch(*_io_service, start_handler);
 
     return true;
 }
@@ -216,9 +218,9 @@ bool UDPServer::Stop()
         onStopped();
     };
     if (_strand_required)
-        _strand.post(stop_handler);
+        asio::post(_strand, stop_handler);
     else
-        _io_service->post(stop_handler);
+        asio::post(*_io_service, stop_handler);
 
     return true;
 }
@@ -317,7 +319,7 @@ size_t UDPServer::Send(const asio::ip::udp::endpoint& endpoint, const void* buff
     };
 
     // Async wait for timeout
-    timer.expires_from_now(timeout.chrono());
+    timer.expires_after(timeout.chrono());
     timer.async_wait([&](const asio::error_code& ec) { async_done_handler(ec ? ec : asio::error::timed_out); });
 
     // Async send datagram to the client
@@ -418,9 +420,13 @@ bool UDPServer::SendAsync(const asio::ip::udp::endpoint& endpoint, const void* b
         }
     });
     if (_strand_required)
-        _socket.async_send_to(asio::buffer(_send_buffer.data(), _send_buffer.size()), _send_endpoint, bind_executor(_strand, async_send_to_handler));
+        _socket.async_send_to(asio::buffer(_send_buffer.data(), _send_buffer.size()), 
+                            _send_endpoint, 
+                            asio::bind_executor(_strand, async_send_to_handler));
     else
-        _socket.async_send_to(asio::buffer(_send_buffer.data(), _send_buffer.size()), _send_endpoint, async_send_to_handler);
+        _socket.async_send_to(asio::buffer(_send_buffer.data(), _send_buffer.size()), 
+                            _send_endpoint, 
+                            async_send_to_handler);
 
     return true;
 }
@@ -495,7 +501,7 @@ size_t UDPServer::Receive(asio::ip::udp::endpoint& endpoint, void* buffer, size_
     };
 
     // Async wait for timeout
-    timer.expires_from_now(timeout.chrono());
+    timer.expires_after(timeout.chrono());
     timer.async_wait([&](const asio::error_code& ec) { async_done_handler(ec ? ec : asio::error::timed_out); });
 
     // Async receive datagram from the client

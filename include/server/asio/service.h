@@ -64,7 +64,7 @@ public:
         \param service - Asio IO service
         \param strands - Asio IO service strands required flag (default is false)
     */
-    explicit Service(const std::shared_ptr<asio::io_service>& service, bool strands = false);
+    explicit Service(const std::shared_ptr<asio::io_context>& service, bool strands = false);
     Service(const Service&) = delete;
     Service(Service&&) = delete;
     virtual ~Service() = default;
@@ -107,7 +107,7 @@ public:
 
         \return Asio IO service
     */
-    virtual std::shared_ptr<asio::io_service>& GetAsioService() noexcept
+    virtual std::shared_ptr<asio::io_context>& GetAsioService() noexcept
     { return _services[++_round_robin_index % _services.size()]; }
 
     //! Dispatch the given handler
@@ -119,7 +119,7 @@ public:
     */
     template <typename CompletionHandler>
     ASIO_INITFN_RESULT_TYPE(CompletionHandler, void()) Dispatch(ASIO_MOVE_ARG(CompletionHandler) handler)
-    { if (_strand_required) return _strand->dispatch(handler); else return _services[0]->dispatch(handler); }
+    { if (_strand_required) return asio::dispatch(*_strand, handler); else return asio::dispatch(*_services[0], handler); }
 
     //! Post the given handler
     /*!
@@ -129,7 +129,7 @@ public:
     */
     template <typename CompletionHandler>
     ASIO_INITFN_RESULT_TYPE(CompletionHandler, void()) Post(ASIO_MOVE_ARG(CompletionHandler) handler)
-    { if (_strand_required) return _strand->post(handler); else return _services[0]->post(handler); }
+    { if (_strand_required) return asio::post(*_strand, handler); else return asio::post(*_services[0], handler); }
 
 protected:
     //! Initialize thread handler
@@ -161,11 +161,11 @@ protected:
 
 private:
     // Asio IO services
-    std::vector<std::shared_ptr<asio::io_service>> _services;
+    std::vector<std::shared_ptr<asio::io_context>> _services;
     // Asio service working threads
     std::vector<std::thread> _threads;
     // Asio service strand for serialized handler execution
-    std::shared_ptr<asio::io_service::strand> _strand;
+    std::shared_ptr<asio::io_context::strand> _strand;
     // Asio service strands required flag
     std::atomic<bool> _strand_required;
     // Asio service polling loop mode flag
@@ -175,7 +175,7 @@ private:
     std::atomic<size_t> _round_robin_index;
 
     //! Service thread
-    static void ServiceThread(const std::shared_ptr<Service>& service, const std::shared_ptr<asio::io_service>& io_service);
+    static void ServiceThread(const std::shared_ptr<Service>& service, const std::shared_ptr<asio::io_context>& io_service);
 
     //! Send error notification
     void SendError(std::error_code ec);

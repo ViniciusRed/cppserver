@@ -132,23 +132,23 @@ bool TCPSession::Disconnect(bool dispatch)
             _server->UnregisterSession(id());
         };
         if (_server->_strand_required)
-            _server->_strand.dispatch(unregister_session_handler);
+            asio::dispatch(_server->_strand, unregister_session_handler);
         else
-            _server->_io_service->dispatch(unregister_session_handler);
+            asio::dispatch(_server->_io_service->get_executor(), unregister_session_handler);
     };
     if (_strand_required)
     {
         if (dispatch)
-            _strand.dispatch(disconnect_handler);
+            asio::dispatch(_strand, disconnect_handler);
         else
-            _strand.post(disconnect_handler);
+            asio::post(_strand, disconnect_handler);
     }
     else
     {
         if (dispatch)
-            _io_service->dispatch(disconnect_handler);
+            asio::dispatch(_io_service->get_executor(), disconnect_handler);
         else
-            _io_service->post(disconnect_handler);
+            asio::post(_io_service->get_executor(), disconnect_handler);
     }
 
     return true;
@@ -222,7 +222,7 @@ size_t TCPSession::Send(const void* buffer, size_t size, const CppCommon::Timesp
     };
 
     // Async wait for timeout
-    timer.expires_from_now(timeout.chrono());
+    timer.expires_after(timeout.chrono());
     timer.async_wait([&](const asio::error_code& ec) { async_done_handler(ec ? ec : asio::error::timed_out); });
 
     // Async write some data to the client
@@ -299,9 +299,9 @@ bool TCPSession::SendAsync(const void* buffer, size_t size)
         TrySend();
     };
     if (_strand_required)
-        _strand.dispatch(send_handler);
+        asio::dispatch(_strand, send_handler);
     else
-        _io_service->dispatch(send_handler);
+        asio::dispatch(_io_service->get_executor(), send_handler);
 
     return true;
 }
@@ -381,7 +381,7 @@ size_t TCPSession::Receive(void* buffer, size_t size, const CppCommon::Timespan&
     };
 
     // Async wait for timeout
-    timer.expires_from_now(timeout.chrono());
+    timer.expires_after(timeout.chrono());
     timer.async_wait([&](const asio::error_code& ec) { async_done_handler(ec ? ec : asio::error::timed_out); });
 
     // Async read some data from the client

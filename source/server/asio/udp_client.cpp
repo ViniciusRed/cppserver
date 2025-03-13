@@ -188,8 +188,8 @@ bool UDPClient::Connect(const std::shared_ptr<UDPResolver>& resolver)
     std::error_code ec;
 
     // Resolve the server endpoint
-    asio::ip::udp::resolver::query query(_address, (_scheme.empty() ? std::to_string(_port) : _scheme));
-    auto endpoints = resolver->resolver().resolve(query, ec);
+    asio::ip::udp::resolver _resolver(*_io_service);
+    asio::ip::udp::resolver::results_type endpoints = _resolver.resolve(_address, std::to_string(_port));
 
     // Check for resolve errors
     if (ec)
@@ -202,7 +202,7 @@ bool UDPClient::Connect(const std::shared_ptr<UDPResolver>& resolver)
         return false;
     }
 
-    _endpoint = *endpoints;
+    _endpoint = *endpoints.begin();
 
     // Open a client socket
     _socket.open(_endpoint.protocol());
@@ -281,9 +281,9 @@ bool UDPClient::ConnectAsync()
     auto self(this->shared_from_this());
     auto connect_handler = [this, self]() { Connect(); };
     if (_strand_required)
-        _strand.post(connect_handler);
+        asio::post(_strand, connect_handler);
     else
-        _io_service->post(connect_handler);
+        asio::post(*_io_service, connect_handler);
 
     return true;
 }
@@ -316,7 +316,7 @@ bool UDPClient::ConnectAsync(const std::shared_ptr<UDPResolver>& resolver)
             if (!ec)
             {
                 // Resolve the server endpoint
-                _endpoint = *endpoints;
+                _endpoint = *endpoints.begin();
 
                 // Open a client socket
                 _socket.open(_endpoint.protocol());
@@ -360,16 +360,15 @@ bool UDPClient::ConnectAsync(const std::shared_ptr<UDPResolver>& resolver)
         };
 
         // Resolve the server endpoint
-        asio::ip::udp::resolver::query query(_address, (_scheme.empty() ? std::to_string(_port) : _scheme));
         if (_strand_required)
-            resolver->resolver().async_resolve(query, bind_executor(_strand, async_resolve_handler));
+            resolver->resolver().async_resolve(_address, std::to_string(_port), bind_executor(_strand, async_resolve_handler));
         else
-            resolver->resolver().async_resolve(query, async_resolve_handler);
+            resolver->resolver().async_resolve(_address, std::to_string(_port), async_resolve_handler);
     };
     if (_strand_required)
-        _strand.post(connect_handler);
+        asio::post(_strand, connect_handler);
     else
-        _io_service->post(connect_handler);
+        asio::post(*_io_service, connect_handler);
 
     return true;
 }
@@ -390,16 +389,16 @@ bool UDPClient::DisconnectInternalAsync(bool dispatch)
     if (_strand_required)
     {
         if (dispatch)
-            _strand.dispatch(disconnect_handler);
+            asio::dispatch(_strand, disconnect_handler);
         else
-            _strand.post(disconnect_handler);
+            asio::post(_strand, disconnect_handler);
     }
     else
     {
         if (dispatch)
-            _io_service->dispatch(disconnect_handler);
+            asio::dispatch(_strand, disconnect_handler);
         else
-            _io_service->post(disconnect_handler);
+            asio::post(_strand, disconnect_handler);
     }
 
     return true;
@@ -453,9 +452,9 @@ void UDPClient::JoinMulticastGroupAsync(const std::string& address)
     auto self(this->shared_from_this());
     auto join_multicast_group_handler = [this, self, address]() { JoinMulticastGroup(address); };
     if (_strand_required)
-        _strand.dispatch(join_multicast_group_handler);
+        asio::dispatch(_strand, join_multicast_group_handler);
     else
-        _io_service->dispatch(join_multicast_group_handler);
+        asio::dispatch(*_io_service, join_multicast_group_handler);
 }
 
 void UDPClient::LeaveMulticastGroupAsync(const std::string& address)
@@ -467,9 +466,9 @@ void UDPClient::LeaveMulticastGroupAsync(const std::string& address)
     auto self(this->shared_from_this());
     auto leave_multicast_group_handler = [this, self, address]() { LeaveMulticastGroup(address); };
     if (_strand_required)
-        _strand.dispatch(leave_multicast_group_handler);
+        asio::dispatch(_strand, leave_multicast_group_handler);
     else
-        _io_service->dispatch(leave_multicast_group_handler);
+        asio::dispatch(*_io_service, leave_multicast_group_handler);
 }
 
 size_t UDPClient::Send(const void* buffer, size_t size)
@@ -552,7 +551,7 @@ size_t UDPClient::Send(const asio::ip::udp::endpoint& endpoint, const void* buff
     };
 
     // Async wait for timeout
-    timer.expires_from_now(timeout.chrono());
+    timer.expires_after(timeout.chrono());
     timer.async_wait([&](const asio::error_code& ec) { async_done_handler(ec ? ec : asio::error::timed_out); });
 
     // Async send datagram to the server
@@ -735,7 +734,7 @@ size_t UDPClient::Receive(asio::ip::udp::endpoint& endpoint, void* buffer, size_
     };
 
     // Async wait for timeout
-    timer.expires_from_now(timeout.chrono());
+    timer.expires_after(timeout.chrono());
     timer.async_wait([&](const asio::error_code& ec) { async_done_handler(ec ? ec : asio::error::timed_out); });
 
     // Async receive datagram from the server

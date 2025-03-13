@@ -95,20 +95,20 @@ Timer::Timer(const std::shared_ptr<Service>& service, const std::function<void(b
         throw CppCommon::ArgumentException("Action function is invalid!");
 }
 
-CppCommon::UtcTime Timer::expire_time() const
+CppCommon::UtcTime Timer::expire_time()
 {
-    return CppCommon::UtcTime(_timer.expires_at());
+    return CppCommon::UtcTime(_timer.expiry());
 }
 
-CppCommon::Timespan Timer::expire_timespan() const
+CppCommon::Timespan Timer::expire_timespan()
 {
-    return CppCommon::Timespan(_timer.expires_from_now());
+    return CppCommon::Timespan(_timer.expiry() - std::chrono::system_clock::now());
 }
 
 bool Timer::Setup(const CppCommon::UtcTime& time)
 {
     asio::error_code ec;
-    _timer.expires_at(time.chrono(), ec);
+    _timer.expires_at(time.chrono());
 
     // Check for error
     if (ec)
@@ -123,7 +123,7 @@ bool Timer::Setup(const CppCommon::UtcTime& time)
 bool Timer::Setup(const CppCommon::Timespan& timespan)
 {
     asio::error_code ec;
-    _timer.expires_from_now(timespan.chrono(), ec);
+    _timer.expires_at(std::chrono::system_clock::now() + timespan.chrono());
 
     // Check for error
     if (ec)
@@ -217,7 +217,7 @@ bool Timer::WaitSync()
 bool Timer::Cancel()
 {
     asio::error_code ec;
-    _timer.cancel(ec);
+    _timer.cancel();
 
     // Check for error
     if (ec)

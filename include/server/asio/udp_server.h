@@ -58,9 +58,9 @@ public:
     //! Get the Asio service
     std::shared_ptr<Service>& service() noexcept { return _service; }
     //! Get the Asio IO service
-    std::shared_ptr<asio::io_service>& io_service() noexcept { return _io_service; }
+    std::shared_ptr<asio::io_context>& io_service() noexcept { return _io_service; }
     //! Get the Asio service strand for serialized handler execution
-    asio::io_service::strand& strand() noexcept { return _strand; }
+    asio::io_context::strand& strand() noexcept { return _strand; }
     //! Get the server endpoint
     asio::ip::udp::endpoint& endpoint() noexcept { return _endpoint; }
     //! Get the server multicast endpoint
@@ -347,9 +347,9 @@ private:
     // Asio service
     std::shared_ptr<Service> _service;
     // Asio IO service
-    std::shared_ptr<asio::io_service> _io_service;
+    std::shared_ptr<asio::io_context> _io_service;
     // Asio service strand for serialized handler execution
-    asio::io_service::strand _strand;
+    asio::io_context::strand _strand;
     bool _strand_required;
     // Server address, scheme & port
     std::string _address;

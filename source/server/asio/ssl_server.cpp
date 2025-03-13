@@ -152,9 +152,9 @@ bool SSLServer::Start()
         Accept();
     };
     if (_strand_required)
-        _strand.post(start_handler);
+        asio::post(_strand, start_handler);
     else
-        _io_service->post(start_handler);
+        asio::post(_io_service->get_executor(), start_handler);
 
     return true;
 }
@@ -191,9 +191,9 @@ bool SSLServer::Stop()
         onStopped();
     };
     if (_strand_required)
-        _strand.post(stop_handler);
+        asio::post(_strand, stop_handler);
     else
-        _io_service->post(stop_handler);
+        asio::post(_io_service->get_executor(), stop_handler);
 
     return true;
 }
@@ -245,9 +245,9 @@ void SSLServer::Accept()
             _acceptor.async_accept(_session->socket(), async_accept_handler);
     });
     if (_strand_required)
-        _strand.dispatch(accept_handler);
+        asio::dispatch(_strand, accept_handler);
     else
-        _io_service->dispatch(accept_handler);
+        asio::dispatch(_io_service->get_executor(), accept_handler);
 }
 
 bool SSLServer::Multicast(const void* buffer, size_t size)
@@ -290,9 +290,9 @@ bool SSLServer::DisconnectAll()
             session.second->Disconnect();
     };
     if (_strand_required)
-        _strand.dispatch(disconnect_all_handler);
+        asio::dispatch(_strand, disconnect_all_handler);
     else
-        _io_service->dispatch(disconnect_all_handler);
+        asio::dispatch(_io_service->get_executor(), disconnect_all_handler);
 
     return true;
 }

@@ -183,8 +183,8 @@ bool TCPClient::Connect(const std::shared_ptr<TCPResolver>& resolver)
     asio::error_code ec;
 
     // Resolve the server endpoint
-    asio::ip::tcp::resolver::query query(_address, (_scheme.empty() ? std::to_string(_port) : _scheme));
-    auto endpoints = resolver->resolver().resolve(query, ec);
+    asio::ip::tcp::resolver _resolver(_io_service->get_executor());
+    auto endpoints = _resolver.resolve(_address, std::to_string(_port));
 
     // Disconnect on error
     if (ec)
@@ -348,9 +348,9 @@ bool TCPClient::ConnectAsync()
             _socket.async_connect(_endpoint, async_connect_handler);
     };
     if (_strand_required)
-        _strand.post(connect_handler);
+        asio::post(_strand, connect_handler);
     else
-        _io_service->post(connect_handler);
+        asio::post(_io_service->get_executor(), connect_handler);
 
     return true;
 }
@@ -446,16 +446,12 @@ bool TCPClient::ConnectAsync(const std::shared_ptr<TCPResolver>& resolver)
         };
 
         // Resolve the server endpoint
-        asio::ip::tcp::resolver::query query(_address, (_scheme.empty() ? std::to_string(_port) : _scheme));
-        if (_strand_required)
-            resolver->resolver().async_resolve(query, bind_executor(_strand, async_resolve_handler));
-        else
-            resolver->resolver().async_resolve(query, async_resolve_handler);
+        resolver->resolver().resolve(_address, std::to_string(_port));
     };
     if (_strand_required)
-        _strand.post(connect_handler);
+        asio::post(_strand, connect_handler);
     else
-        _io_service->post(connect_handler);
+        asio::post(_io_service->get_executor(), connect_handler);
 
     return true;
 }
@@ -476,16 +472,16 @@ bool TCPClient::DisconnectInternalAsync(bool dispatch)
     if (_strand_required)
     {
         if (dispatch)
-            _strand.dispatch(disconnect_handler);
+            asio::dispatch(_strand, disconnect_handler);
         else
-            _strand.post(disconnect_handler);
+            asio::post(_strand, disconnect_handler);
     }
     else
     {
         if (dispatch)
-            _io_service->dispatch(disconnect_handler);
+            asio::dispatch(_io_service->get_executor(), disconnect_handler);
         else
-            _io_service->post(disconnect_handler);
+            asio::post(_io_service->get_executor(), disconnect_handler);
     }
 
     return true;
@@ -569,7 +565,7 @@ size_t TCPClient::Send(const void* buffer, size_t size, const CppCommon::Timespa
     };
 
     // Async wait for timeout
-    timer.expires_from_now(timeout.chrono());
+    timer.expires_after(timeout.chrono());
     timer.async_wait([&](const asio::error_code& ec) { async_done_handler(ec ? ec : asio::error::timed_out); });
 
     // Async write some data to the server
@@ -645,9 +641,9 @@ bool TCPClient::SendAsync(const void* buffer, size_t size)
         TrySend();
     };
     if (_strand_required)
-        _strand.dispatch(send_handler);
+        asio::dispatch(_strand, send_handler);
     else
-        _io_service->dispatch(send_handler);
+        asio::dispatch(_io_service->get_executor(), send_handler);
 
     return true;
 }
@@ -726,7 +722,7 @@ size_t TCPClient::Receive(void* buffer, size_t size, const CppCommon::Timespan& 
     };
 
     // Async wait for timeout
-    timer.expires_from_now(timeout.chrono());
+    timer.expires_after(timeout.chrono());
     timer.async_wait([&](const asio::error_code& ec) { async_done_handler(ec ? ec : asio::error::timed_out); });
 
     // Async read some data from the server
