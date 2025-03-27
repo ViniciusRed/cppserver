@@ -98,22 +98,29 @@ std::future<HTTPResponse> HTTPClientEx::SendRequest(const HTTPRequest& request, 
         }
     }
 
-    // Setup timeout check timer
-    auto self(this->shared_from_this());
-    auto timeout_handler = [this, self](bool canceled)
+    if (timeout > CppCommon::Timespan::zero())
     {
-        if (canceled)
-            return;
+        // Create timeout check timer if the current one is empty
+        if (!_timeout)
+            _timeout = std::make_shared<Asio::Timer>(service());
+            
+        auto self(this->shared_from_this());
+        auto timeout_handler = [this, self](bool canceled)
+        {
+            if (canceled)
+                return;
 
-        // Disconnect on timeout
-        onReceivedResponseError(_response, "Timeout!");
-        _response.Clear();
-        DisconnectAsync();
-    };
-    if (!_timeout->Setup(timeout_handler, timeout) || !_timeout->WaitAsync())
-    {
-        SetPromiseError("Failed to setup timeout timer!");
-        return _promise.get_future();
+            // Disconnect on timeout
+            onReceivedResponseError(_response, "Timeout!");
+            _response.Clear();
+            DisconnectAsync();
+        };
+        
+        if (!_timeout->Setup(timeout_handler, timeout) || !_timeout->WaitAsync())
+        {
+            SetPromiseError("Failed to setup timeout timer!");
+            return _promise.get_future();
+        }
     }
 
     return _promise.get_future();

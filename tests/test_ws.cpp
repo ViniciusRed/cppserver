@@ -185,7 +185,7 @@ TEST_CASE("WebSocket server test", "[CppServer][WebSocket]")
 TEST_CASE("WebSocket server multicast test", "[CppServer][WebSocket]")
 {
     const std::string address = "127.0.0.1";
-    const int port = 8082;
+    const int port = 8090;
 
     // Create and start Asio service
     auto service = std::make_shared<EchoWSService>();

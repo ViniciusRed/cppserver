@@ -204,28 +204,40 @@ TEST_CASE("HTTP server & client test", "[CppServer][HTTP]")
     REQUIRE(server->Start());
     while (!server->IsStarted())
         Thread::Yield();
+    
+    Thread::Sleep(1000); // Espera 1 segundo
 
     // Create a new HTTP client
     auto client = std::make_shared<HTTPClientEx>(service, address, port);
-
-    // Test CRUD operations
-    auto response = client->SendGetRequest("/test").get();
-    REQUIRE(response.status() == 404);
-    response = client->SendPostRequest("/test", "old_value").get();
-    REQUIRE(response.status() == 200);
-    response = client->SendGetRequest("/test").get();
-    REQUIRE(response.status() == 200);
-    REQUIRE(response.body() == "old_value");
-    response = client->SendPutRequest("/test", "new_value").get();
-    REQUIRE(response.status() == 200);
-    response = client->SendGetRequest("/test").get();
-    REQUIRE(response.status() == 200);
-    REQUIRE(response.body() == "new_value");
-    response = client->SendDeleteRequest("/test").get();
-    REQUIRE(response.status() == 200);
-    REQUIRE(response.body() == "new_value");
-    response = client->SendGetRequest("/test").get();
-    REQUIRE(response.status() == 404);
+    
+    // Conecte o cliente explicitamente e aguarde a conexão
+    REQUIRE(client->ConnectAsync());
+    Thread::Sleep(500); // Espera 0.5 segundo para a conexão ser estabelecida
+    
+    try {
+        // Test CRUD operations
+        auto response = client->SendGetRequest("/test", CppCommon::Timespan::seconds(10)).get();
+        REQUIRE(response.status() == 404);
+        response = client->SendPostRequest("/test", "old_value", CppCommon::Timespan::seconds(10)).get();
+        REQUIRE(response.status() == 200);
+        response = client->SendGetRequest("/test", CppCommon::Timespan::seconds(10)).get();
+        REQUIRE(response.status() == 200);
+        REQUIRE(response.body() == "old_value");
+        response = client->SendPutRequest("/test", "new_value", CppCommon::Timespan::seconds(10)).get();
+        REQUIRE(response.status() == 200);
+        response = client->SendGetRequest("/test", CppCommon::Timespan::seconds(10)).get();
+        REQUIRE(response.status() == 200);
+        REQUIRE(response.body() == "new_value");
+        response = client->SendDeleteRequest("/test", CppCommon::Timespan::seconds(10)).get();
+        REQUIRE(response.status() == 200);
+        REQUIRE(response.body() == "new_value");
+        response = client->SendGetRequest("/test", CppCommon::Timespan::seconds(10)).get();
+        REQUIRE(response.status() == 404);
+    }
+    catch (const std::exception& ex) {
+        std::cout << "Exception during test: " << ex.what() << std::endl;
+        FAIL(ex.what());
+    }
 
     // Stop the HTTP server
     REQUIRE(server->Stop());
