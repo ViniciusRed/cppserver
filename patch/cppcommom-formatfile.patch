@@ -1,0 +1,39 @@
+--- modules/CppCommon/include/string/format.inl	2025-03-26 23:48:09.188632060 -0300
++++ modules/CppCommon/include/string/format.inl	2025-03-26 22:52:41.364739017 -0300
+@@ -17,31 +17,31 @@
+     template <typename... T>
+     inline std::wstring format(fmt::wformat_string<T...> pattern, T&&... args)
+     {
+-        return fmt::vformat<wchar_t>(pattern, fmt::make_format_args<fmt::wformat_context>(args...));
++        return fmt::vformat(pattern, fmt::make_format_args(args...));
+     }
+ 
+     template <typename... T>
+     inline void print(fmt::format_string<T...> pattern, T&&... args)
+     {
+-        return fmt::vprint(pattern, fmt::make_format_args(args...));
++        fmt::vprint(pattern, fmt::make_format_args(args...));
+     }
+ 
+     template <typename... T>
+     inline void print(fmt::wformat_string<T...> pattern, T&&... args)
+     {
+-        return fmt::vprint<wchar_t>(pattern, fmt::make_format_args<fmt::wformat_context>(args...));
++        fmt::vprint(pattern, fmt::make_format_args(args...));
+     }
+ 
+     template <typename TOutputStream, typename... T>
+     inline void print(TOutputStream& stream, fmt::format_string<T...> pattern, T&&... args)
+     {
+-        return fmt::vprint(stream, pattern, fmt::make_format_args(args...));
++        fmt::vprint(stream, pattern, fmt::make_format_args(args...));
+     }
+ 
+     template <typename TOutputStream, typename... T>
+     inline void print(TOutputStream& stream, fmt::wformat_string<T...> pattern, T&&... args)
+     {
+-        return fmt::vprint<wchar_t>(stream, pattern, fmt::make_format_args<fmt::wformat_context>(args...));
++        fmt::vprint(stream, pattern, fmt::make_format_args(args...));
+     }
+ 
+ } // namespace CppCommon
